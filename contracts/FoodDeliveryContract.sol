@@ -2,8 +2,6 @@
 
 pragma solidity >=0.8.0 <0.9.0;
 
-
-import "./FoodDeliveryContract.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
     /// @title Smart Contract for Food Delivery Application
@@ -283,6 +281,7 @@ contract FoodDeliveryContract {
         _customerEscarowAmount += msg.value;
         _orderStatus = OrderStatus.CUSTOMER_PAID;
     }
+    
     /// @notice Only the restaurant can acknowledge an Order which is in the CUSTOMER_PAID state. Acknowledging order will move 
     /// the order to RESTAURANT_PREPARING state. Contract will not allow anyone else to do this.
     function restaurantAcknolegement() onlyCustomerPaidOrder onlyRestaurant  public {
