@@ -10,10 +10,11 @@ contract FoodDeliveryContractFactory {
 
     mapping(uint => FoodDeliveryContract) deliveryContracts;
 
-    function createFoodDeliveryContract(address chainLinkPriceFeedAddress, address payable restaurantAddress, address payable deliveryPartnerAddress, address payable customerAddress, address payable platformAddress
-                    , FoodDeliveryContract.OrderItem[] memory orderItems, uint orderDeliveryCharge, uint platformCharge) public returns (uint, FoodDeliveryContract) {
-        FoodDeliveryContract foodDeliveryContract = new FoodDeliveryContract(chainLinkPriceFeedAddress, restaurantAddress, deliveryPartnerAddress, customerAddress, platformAddress, orderItems
-                    , orderDeliveryCharge, platformCharge);
+    function createFoodDeliveryContract(address chainLinkPriceFeedAddress, address payable restaurantAddress, address payable deliveryPartnerAddress, address payable customerAddress
+                    , address payable platformAddress, FoodDeliveryContract.OrderItem[] memory orderItems, uint orderDeliveryCharge, uint platformCharge) 
+                                                                    public returns (uint, FoodDeliveryContract) {
+        FoodDeliveryContract foodDeliveryContract = new FoodDeliveryContract(chainLinkPriceFeedAddress, restaurantAddress, deliveryPartnerAddress, customerAddress, 
+                                                                platformAddress, orderItems, orderDeliveryCharge, platformCharge);
         deliveryContracts[++orderCount] = foodDeliveryContract;
         return (orderCount, foodDeliveryContract);
     }
