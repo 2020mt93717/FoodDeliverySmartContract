@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.8.13 <0.9.0;
+pragma solidity >=0.8.0 <0.9.0;
+
+
+import "./FoodDeliveryContract.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
     /// @title Smart Contract for Food Delivery Application
     /// @author Jaikarthik Natarajan (Bits Id: 2020mt93717@wilp.bits-pilani.ac.in)
@@ -79,6 +83,9 @@ contract FoodDeliveryContract {
     /// @dev Number of Items in the Order
     uint _numberOfItems;
 
+    /// @dev Address of Chain Link Price Feed Oracle Network
+    address _chainLinkPriceFeedAddress;
+
     /// @dev Address of Platform. Platform Charges will be transfered to this address
     address payable _platformAddress;
 
@@ -92,19 +99,22 @@ contract FoodDeliveryContract {
     address payable _customerAddress;      
 
     /// @dev Current Order Status
-    OrderStatus _orderStatus;
+    OrderStatus public _orderStatus;
 
+    /// @notice Get Order Value. This is the amount to be paid to Restaurant once order is delivered to customer.
     /// @dev Order Value. This is sum of all Order Item price
-    uint _orderValue;
+    uint public _orderValue;
 
+    /// @notice Get Delivery Charge. This is the amount to be paid to Delivery Partner once order is delivered to customer.
     /// @dev Delivery Charges. This will be paid to Delivery parther once Order is delivered
-    uint _orderDeliveryCharge;
+    uint public _orderDeliveryCharge;
 
+    /// @notice Get Platform Charge. This is the amount to be paid to Delivery Platform once order is delivered to customer.
     /// @dev Platform Charges. This will be paid to Platform once Order is delivered
-    uint _platformCharge;
+    uint public _platformCharge;
 
     /// @dev Escarow Amount that was transfered by Customer to this Contract
-    uint _customerEscarowAmount;
+    uint public _customerEscarowAmount;
 
     /// @dev Missing Order Items
     uint[] _missingOrderItems;
@@ -117,16 +127,17 @@ contract FoodDeliveryContract {
     /// @param orderItems Order Item for this Order
     /// @param orderDeliveryCharge Delivery Charges. This will be paid to Delivery parther once Order is delivered
     /// @param platformCharge Platform Charges. This will be paid to Platform once Order is delivered
-    constructor (address payable restaurantAddress, address payable deliveryPartnerAddress, address payable customerAddress, address payable platformAddress, OrderItem[] memory orderItems
+    constructor (address chainLinkPriceFeedAddress, address payable restaurantAddress, address payable deliveryPartnerAddress, address payable customerAddress, address payable platformAddress, OrderItem[] memory orderItems
                     , uint orderDeliveryCharge, uint platformCharge) {
         
+        require(chainLinkPriceFeedAddress != address(0), "ChainLink Price Feed Address Address is required");
         require(restaurantAddress != address(0), "Restaurant Address is required");
         require(customerAddress != address(0), "Customer Address is required");
         require(platformAddress != address(0), "Platform Address is required");
         require(orderDeliveryCharge > 0, "Delivery Charges Should be Greater than 0");
         require(platformCharge > 0, "Platform Charges Should be Greater than 0");
 
-
+        _chainLinkPriceFeedAddress = chainLinkPriceFeedAddress;
         _platformAddress = platformAddress;
         _restaurantAddress = restaurantAddress;
         _deliveryPartnerAddress = deliveryPartnerAddress;
@@ -174,70 +185,46 @@ contract FoodDeliveryContract {
 
     /// @dev Modifier that checks if the order is in NEW State.
     modifier onlyNewOrder {
-        require(_orderStatus == OrderStatus.NEW);
+        require(_orderStatus == OrderStatus.NEW, "Action is applicable ony for NEW Contract");
         _;                            
     }
 
     /// @dev Modifier that checks if the order is in NEW State.
     modifier onlyCustomerPaidOrder {
-        require(_orderStatus == OrderStatus.CUSTOMER_PAID);
+        require(_orderStatus == OrderStatus.CUSTOMER_PAID, "Action is applicable ony for CUSTOMER_PAID Contract");
         _;                            
     }
 
     /// @dev Modifier that checks if the order is in NRESTAURANT_PREPARING State.
     modifier onlyRestaurantPreparingOrder {
-        require(_orderStatus == OrderStatus.RESTAURANT_PREPARING);
+        require(_orderStatus == OrderStatus.RESTAURANT_PREPARING, "Action is applicable ony for RESTAURANT_PREPARING Contract");
         _;                            
     }
 
     /// @dev Modifier that checks if the order is in HANDED_OVER_TO_DELIVERY_PARTNER_MISSING_ITEMS State.
     modifier onlyHandedToDeliveryPartnerWithMissingItemsOrder {
-        require(_orderStatus == OrderStatus.HANDED_OVER_TO_DELIVERY_PARTNER_MISSING_ITEMS);
+        require(_orderStatus == OrderStatus.HANDED_OVER_TO_DELIVERY_PARTNER_MISSING_ITEMS, "Action is applicable ony for HANDED_OVER_TO_DELIVERY_PARTNER_MISSING_ITEMS Contract");
         _;                            
     }
 
     /// @dev Modifier that checks if the order is in HANDED_OVER_TO_DELIVERY_PARTNER State.
     modifier onlyHandedToDeliveryPartnerOrder {
-        require(_orderStatus == OrderStatus.HANDED_OVER_TO_DELIVERY_PARTNER);
+        require(_orderStatus == OrderStatus.HANDED_OVER_TO_DELIVERY_PARTNER, "Action is applicable ony for HANDED_OVER_TO_DELIVERY_PARTNER Contract");
         _;                            
     }
 
     /// @dev Modifier that checks if Delivery Partner Address is Valid.
     modifier onlyAfterDeliveryPartnerIsAssigned {
-        require(_deliveryPartnerAddress != address(0));
+        require(_deliveryPartnerAddress != address(0), "Delivery Partner not assigned");
         _;                            
     }
 
-    /// @notice Get Order Value. This is the amount to be paid to Restaurant once order is delivered to customer.
-    /// @return Order Values in wei
-    function getOrderValue() view public returns (uint) {
-        return _orderValue;   
-    }
-
-    /// @notice Get Delivery Charge. This is the amount to be paid to Delivery Partner once order is delivered to customer.
-    /// @return Delivery Charge in wei
-    function getOrderDeliveryCharge() view public returns (uint) {
-        return _orderDeliveryCharge;   
-    }
-
-    /// @notice Get Platform Charge. This is the amount to be paid to Delivery Platform once order is delivered to customer.
-    /// @return Platform Charge in wei
-    function getPlatformCharge() view public returns (uint) {
-        return _platformCharge;   
-    }
-
     /// @notice Total Order Value. This is the value of this contract. Its the sum of 
-    ///.        Delivery Charge + Order Value + Platform Charge.
+    ///         Delivery Charge + Order Value + Platform Charge.
     /// @dev Customer Escarow amount should be greater or equal to this value
     /// @return Total Orver Value in wei
     function getTotalOrderValue() view public returns (uint) {
         return _orderValue + _orderDeliveryCharge + _platformCharge;   
-    }
-
-    /// @notice Get Order State
-    /// @return Order State
-    function getOrderState() view public returns (OrderStatus) {
-        return _orderStatus;
     }
 
     /// @notice Order Items that are part of this order.
@@ -358,6 +345,35 @@ contract FoodDeliveryContract {
 
         _customerEscarowAmount = 0;
         _orderStatus = OrderStatus.DELIVERED_TO_CUSTOMER;
+    }
+
+    /// @notice function to get the version of the chainlink price feed
+    /// @return Price Feed Version
+    function getVersion() public view returns (uint256){
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(_chainLinkPriceFeedAddress);
+        return priceFeed.version();
+    }
+
+    /// @notice function to get Ether to USD Conversion
+    /// @return Ether to USD Conversion Rate
+    function getEthToUSDPrice() public view returns(uint256){
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(_chainLinkPriceFeedAddress);
+        (,int256 answer,,,) = priceFeed.latestRoundData();
+         return uint256(answer * 10000000000);
+    }
+
+    /// @notice convert Ether to USD
+    /// @param ethAmount Amount in Wei
+    /// @return USD Amount
+    function getConversionRate(uint256 ethAmount) public view returns (uint256){
+        uint256 ethPrice = getEthToUSDPrice();
+        uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1000000000000000000;
+        return ethAmountInUsd;
+    }
+
+    /// @notice Total Order Value in USD
+    function getTotalOrderValueUSD() public view returns (uint256) {
+        return getConversionRate(getTotalOrderValue());
     }
 
     /// @dev utility function to find an element in array
