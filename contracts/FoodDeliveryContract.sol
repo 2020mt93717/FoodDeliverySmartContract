@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.6.6 <0.9.0;
+pragma solidity >=0.8.13 <0.9.0;
 
     /// @title Smart Contract for Food Delivery Application
     /// @author Jaikarthik Natarajan (Bits Id: 2020mt93717@wilp.bits-pilani.ac.in)
